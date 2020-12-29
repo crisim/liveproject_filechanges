@@ -1,6 +1,8 @@
 import os
 import sys
 import sqlite3
+import time
+import hashlib
 
 """Ritorna il percorso del database"""
 def getdbname():
@@ -104,6 +106,30 @@ def md5indb(fname):
         except:
             pass
     return items
+
+def haschanged(fname, md5):
+    items = md5indb(fname)
+    if items.__contains__(md5):
+        pass
+
+
+def getfileext(fname):
+    """Get the file name extension"""
+    return os.path.splitext(fname)[1]
+
+def getmoddate(fname):
+    """Get file modified date"""
+    try:
+        mtime = os.path.getmtime(fname)
+        mtime = time.ctime(mtime)
+    return mtime
+
+def md5short(fname):
+    """Get md5 file hash tag"""
+    with open(fname, 'rb', 'utf-8') as openfile:
+        content = openfile.read()
+        result = hashlib.md5(content).digest()
+    return result
 
 """Test"""
 if __name__ == "__main__":

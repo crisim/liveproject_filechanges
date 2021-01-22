@@ -1,8 +1,12 @@
 import os
+import ntpath
 import sys
 import sqlite3
 import time
 import hashlib
+from openpyxl import Workbook
+from openpyxl.styles import Font
+from datetime import datetime
 
 """Ritorna il percorso del database"""
 def getbasefile():
@@ -125,6 +129,7 @@ def haschanged(fname, md5):
     else:
         if not md5 in items:
             updatehashtable(fname, md5)
+            return True
 
 def getfileext(fname):
     """Get the file name extension"""
@@ -132,14 +137,12 @@ def getfileext(fname):
 
 def getmoddate(fname):
     """Get file modified date"""
-    try:
-        mtime = os.path.getmtime(fname)
-        mtime = time.ctime(mtime)
-    return mtime
+    mtime = os.path.getmtime(fname)
+    return datetime.fromtimestamp(mtime)
 
 def md5short(fname):
     """Get md5 file hash tag"""
-    with open(fname, 'rb', 'utf-8') as openfile:
+    with open(fname, mode='rb') as openfile:
         content = openfile.read()
         result = hashlib.md5(content).digest()
     return result
@@ -150,7 +153,7 @@ def loadflds():
     inifile = getbasefile() + '.ini'
     if os.path.isfile(inifile):
         cfile = open(inifile, 'r')
-        for line in cfile.readline():
+        for line in cfile:
             tokens = line.split("|")
             fld = tokens[0]
             fext = []
@@ -171,8 +174,15 @@ def checkfilechanges(folder, exclude, ws):
                     md5 = md5short(origin)
                     if haschanged(origin, md5):
                         changed=True
+                        fn, fld = ntpath.split(origin)
+                        mt = getmoddate(origin)
+                        rowxlsreport(ws,fn,origin,fld,mt.strftime("%d-%b-%Y"), mt.strftime("%I:%M:%S"))
                         #write in file
     return changed
+
+def path_leaf(path):
+    head, tail = ntpath.split(path)
+    return tail or ntpath.basename(head)
 
 def runfilechanges(ws):
     changed = False
@@ -184,8 +194,7 @@ def runfilechanges(ws):
 
 def execute(args):
     # Start the creation of the Excel report
-    ws = None
-
+    wb, ws, st = startxlsreport()
     if '--loop' in args:    
         try:
             while True:
@@ -196,7 +205,53 @@ def execute(args):
     else:
         changed = runfilechanges(ws)
     # Finalize the creation of the Excel report
+    endxlsreport(wb, st)
 
+
+def getdt(fmt):
+    """Get the current DateTime as a string"""
+    now = datetime.now()
+    return now.strftime(fmt)
+
+
+def startxlsreport():
+    # Create the workbook, get the hostname and current DateTime
+    wb = Workbook()
+    ws = wb.active
+    st = getdt("%d-%b-%Y %H_%M_%S")
+    headerxlsreport(ws)
+
+    return wb, ws, st
+
+def headerxlsreport(ws):
+    ws.cell(row=1, column=1, value="File Name")
+    ws.cell(row=1, column=2, value="Full File Name")
+    ws.cell(row=1, column=3, value="Folder Name")
+    ws.cell(row=1, column=4, value="Date")
+    ws.cell(row=1, column=5, value="Time")
+
+    ft = Font(bold=True)
+    ws["A1"].font = ft
+    ws["A2"].font = ft
+    ws["A3"].font = ft
+    ws["A4"].font = ft
+    ws["A6"].font = ft
+
+def getlastrow(ws):
+    return ws.max_row + 1
+
+def rowxlsreport(ws, fn, ffn, fld, d, t):
+    row = getlastrow(ws)
+    ws.cell(row=row, column=1, value=fn)
+    ws.cell(row=row, column=2, value=ffn)
+    ws.cell(row=row, column=3, value=fld)
+    ws.cell(row=row, column=4, value=d)
+    ws.cell(row=row, column=5, value=t)
+
+def endxlsreport(wb, st):
+    dt = ' from ' + st + ' to ' + getdt("%d-%b-%Y %H_%M_%S")
+    # Finalize the creation of the Excel report
+    wb.save(getbasefile() + dt + '.xlsx')
 
 """Test"""
 if __name__ == '__main__':

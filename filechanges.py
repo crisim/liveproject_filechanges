@@ -182,15 +182,22 @@ def runfilechanges(ws):
             changed=True
     return changed
 
+def execute(args):
+    # Start the creation of the Excel report
+    ws = None
+
+    if '--loop' in args:    
+        try:
+            while True:
+                changed = runfilechanges(ws)
+        except KeyboardInterrupt:
+            # Check for a keyboard interruption to stop the script
+            pass
+    else:
+        changed = runfilechanges(ws)
+    # Finalize the creation of the Excel report
+
 
 """Test"""
-if __name__ == "__main__":
-    try:
-        setuphashtable()
-        print(inserthashtable('test', bytearray([1,2,3,4,5])))
-        print(md5indb("test"))
-        print(updatehashtable('test', bytearray([1,2,3,4,6])))
-        print(md5indb("test"))
-
-    except:
-        print("Nulla da dichiarare")
+if __name__ == '__main__':
+    execute(sys.argv)
